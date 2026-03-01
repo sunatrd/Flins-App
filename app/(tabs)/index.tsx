@@ -12,7 +12,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTransactionStore } from '@/stores/transactionStore';
 import { useAuthStore } from '@/stores/authStore';
-import { useCategoryStore } from '@/stores/categoryStore';
+import { useProfileStore } from '@/stores/profileStore';
 import { BalanceCard } from '@/components/dashboard/BalanceCard';
 import { PeriodSelector } from '@/components/dashboard/PeriodSelector';
 import { SpendingChart } from '@/components/dashboard/SpendingChart';
@@ -27,8 +27,12 @@ type Period = 'week' | 'month' | 'year';
 export default function DashboardScreen() {
   const { transactions, loading, fetch } = useTransactionStore();
   const { user } = useAuthStore();
+  const { profile } = useProfileStore();
   const [period, setPeriod] = useState<Period>('month');
   const [refreshing, setRefreshing] = useState(false);
+
+  const currency = profile?.currency ?? 'USD';
+  const displayName = profile?.full_name || user?.email || 'there';
 
   const periodTxs = useMemo(() => {
     const { from, to } = getDateRangeForPeriod(period);
@@ -74,7 +78,7 @@ export default function DashboardScreen() {
           <View>
             <Text style={styles.greeting}>Hello 👋</Text>
             <Text style={styles.userName} numberOfLines={1}>
-              {user?.user_metadata?.full_name ?? user?.email ?? 'there'}
+              {displayName}
             </Text>
           </View>
           <Pressable
@@ -87,7 +91,7 @@ export default function DashboardScreen() {
 
         {/* Balance card */}
         <View style={styles.section}>
-          <BalanceCard balance={balance} income={income} expense={expense} />
+          <BalanceCard balance={balance} income={income} expense={expense} currency={currency} />
         </View>
 
         {/* Period selector */}
@@ -129,7 +133,9 @@ export default function DashboardScreen() {
                 <View key={tx.id}>
                   <TransactionItem
                     transaction={tx}
-                    onPress={() => router.push('/(tabs)/transactions')}
+                    showDate
+                    currency={currency}
+                    onPress={() => router.push(`/modal/add-transaction?id=${tx.id}`)}
                   />
                   {i < recent.length - 1 && <View style={styles.divider} />}
                 </View>

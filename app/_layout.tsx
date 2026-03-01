@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { useCategoryStore } from '@/stores/categoryStore';
 import { useTransactionStore } from '@/stores/transactionStore';
+import { useProfileStore } from '@/stores/profileStore';
 
 export default function RootLayout() {
   const { setSession } = useAuthStore();
@@ -13,6 +14,7 @@ export default function RootLayout() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
+        useProfileStore.getState().fetch(session.user.id);
         useCategoryStore.getState().fetch(session.user.id).then(() => {
           useCategoryStore.getState().seedDefaults(session.user.id);
         });
@@ -23,10 +25,13 @@ export default function RootLayout() {
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session?.user) {
+        useProfileStore.getState().fetch(session.user.id);
         useCategoryStore.getState().fetch(session.user.id).then(() => {
           useCategoryStore.getState().seedDefaults(session.user.id);
         });
         useTransactionStore.getState().fetch(session.user.id);
+      } else {
+        useProfileStore.getState().clear();
       }
     });
 

@@ -2,21 +2,30 @@ import { View, Text, StyleSheet, Pressable } from 'react-native';
 import type { TransactionWithCategory } from '@/stores/transactionStore';
 import { Colors } from '@/constants/colors';
 import { Spacing, Radius } from '@/constants/spacing';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatShortDate } from '@/lib/utils';
 
 type Props = {
   transaction: TransactionWithCategory;
   onPress?: () => void;
+  onLongPress?: () => void;
+  showDate?: boolean;
+  currency?: string;
 };
 
-export function TransactionItem({ transaction, onPress }: Props) {
-  const { type, amount, categories, note } = transaction;
+export function TransactionItem({ transaction, onPress, onLongPress, showDate, currency }: Props) {
+  const { type, amount, categories, note, date } = transaction;
   const isIncome = type === 'income';
+
+  const subtitle = [
+    showDate ? formatShortDate(date) : null,
+    note ?? null,
+  ].filter(Boolean).join(' · ');
 
   return (
     <Pressable
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}
       onPress={onPress}
+      onLongPress={onLongPress}
     >
       <View style={[styles.iconBox, { backgroundColor: categories ? `${categories.color}18` : Colors.surface }]}>
         <Text style={styles.icon}>{categories?.icon ?? '💰'}</Text>
@@ -26,11 +35,11 @@ export function TransactionItem({ transaction, onPress }: Props) {
         <Text style={styles.name} numberOfLines={1}>
           {categories?.name ?? 'Uncategorized'}
         </Text>
-        {note ? <Text style={styles.note} numberOfLines={1}>{note}</Text> : null}
+        {subtitle ? <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text> : null}
       </View>
 
       <Text style={[styles.amount, { color: isIncome ? Colors.income : Colors.expense }]}>
-        {isIncome ? '+' : '-'}{formatCurrency(amount)}
+        {isIncome ? '+' : '-'}{formatCurrency(amount, currency)}
       </Text>
     </Pressable>
   );
@@ -55,6 +64,6 @@ const styles = StyleSheet.create({
   icon: { fontSize: 20 },
   info: { flex: 1 },
   name: { fontSize: 15, fontWeight: '500', color: Colors.textPrimary },
-  note: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
+  subtitle: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
   amount: { fontSize: 15, fontWeight: '600' },
 });

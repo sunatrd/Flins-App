@@ -27,8 +27,9 @@ type TransactionState = {
   loading: boolean;
   fetch: (userId: string) => Promise<void>;
   addTransaction: (tx: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>) => Promise<string | null>;
-  updateTransaction: (id: string, updates: Partial<Transaction>) => Promise<void>;
+  updateTransaction: (id: string, updates: Partial<Transaction>) => Promise<string | null>;
   removeTransaction: (id: string) => Promise<void>;
+  clearAll: (userId: string) => Promise<string | null>;
 };
 
 export const useTransactionStore = create<TransactionState>((set) => ({
@@ -73,13 +74,15 @@ export const useTransactionStore = create<TransactionState>((set) => ({
       .select('*, categories(name, icon, color)')
       .single();
 
-    if (!error && data) {
+    if (error) return error.message;
+    if (data) {
       set((s) => ({
         transactions: s.transactions.map((t) =>
           t.id === id ? (data as TransactionWithCategory) : t
         ),
       }));
     }
+    return null;
   },
 
   removeTransaction: async (id) => {
@@ -87,5 +90,15 @@ export const useTransactionStore = create<TransactionState>((set) => ({
     set((s) => ({
       transactions: s.transactions.filter((t) => t.id !== id),
     }));
+  },
+
+  clearAll: async (userId) => {
+    const { error } = await supabase
+      .from('transactions')
+      .delete()
+      .eq('user_id', userId);
+    if (error) return error.message;
+    set({ transactions: [] });
+    return null;
   },
 }));

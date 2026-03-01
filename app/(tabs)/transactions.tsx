@@ -12,6 +12,7 @@ import {
 import { router } from 'expo-router';
 import { useTransactionStore } from '@/stores/transactionStore';
 import { useAuthStore } from '@/stores/authStore';
+import { useProfileStore } from '@/stores/profileStore';
 import { TransactionItem } from '@/components/transaction/TransactionItem';
 import { Colors } from '@/constants/colors';
 import { Spacing, Radius } from '@/constants/spacing';
@@ -22,6 +23,8 @@ type Filter = 'all' | 'income' | 'expense';
 export default function TransactionsScreen() {
   const { transactions, loading, fetch, removeTransaction } = useTransactionStore();
   const { user } = useAuthStore();
+  const { profile } = useProfileStore();
+  const currency = profile?.currency ?? 'USD';
   const [filter, setFilter] = useState<Filter>('all');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -102,16 +105,9 @@ export default function TransactionsScreen() {
             <View style={styles.itemWrap}>
               <TransactionItem
                 transaction={item}
-                onPress={() => {
-                  Alert.alert(
-                    'Transaction',
-                    `${item.categories?.name ?? 'Uncategorized'} — ${item.note ?? 'No note'}`,
-                    [
-                      { text: 'Delete', style: 'destructive', onPress: () => handleDelete(item.id) },
-                      { text: 'Close', style: 'cancel' },
-                    ]
-                  );
-                }}
+                currency={currency}
+                onPress={() => router.push(`/modal/add-transaction?id=${item.id}`)}
+                onLongPress={() => handleDelete(item.id)}
               />
             </View>
           )}

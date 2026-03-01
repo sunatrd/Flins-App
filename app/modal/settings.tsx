@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -12,8 +12,9 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
+import { useProfileStore } from '@/stores/profileStore';
+import { useTransactionStore } from '@/stores/transactionStore';
 import { Colors } from '@/constants/colors';
 import { Spacing, Radius, Shadow } from '@/constants/spacing';
 
@@ -24,44 +25,31 @@ const CURRENCIES = [
 
 export default function SettingsModal() {
   const { user, signOut } = useAuthStore();
+  const { profile, update } = useProfileStore();
+  const { clearAll } = useTransactionStore();
 
-  const [name, setName] = useState('');
-  const [currency, setCurrency] = useState('USD');
-  const [loading, setLoading] = useState(true);
+  const [name, setName] = useState(profile?.full_name ?? '');
+  const [currency, setCurrency] = useState(profile?.currency ?? 'USD');
   const [saving, setSaving] = useState(false);
   const [currencyOpen, setCurrencyOpen] = useState(false);
 
-  useEffect(() => {
-    async function loadProfile() {
-      if (!user) return;
-      const { data } = await supabase
-        .from('profiles')
-        .select('full_name, currency')
-        .eq('id', user.id)
-        .single();
-
-      if (data) {
-        setName(data.full_name ?? '');
-        setCurrency(data.currency ?? 'USD');
-      }
-      setLoading(false);
-    }
-    loadProfile();
-  }, [user]);
+  if (!profile) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator color={Colors.brand} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   async function handleSave() {
     if (!user) return;
     setSaving(true);
-
-    const { error } = await supabase
-      .from('profiles')
-      .update({ full_name: name.trim(), currency })
-      .eq('id', user.id);
-
+    const error = await update(user.id, { full_name: name.trim(), currency });
     setSaving(false);
-
     if (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert('Error', error);
     } else {
       router.back();
     }
@@ -81,6 +69,25 @@ export default function SettingsModal() {
     ]);
   }
 
+  function handleResetTransactions() {
+    Alert.alert(
+      'Reset all transactions',
+      'This will permanently delete all your transaction history. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete all',
+          style: 'destructive',
+          onPress: async () => {
+            if (!user) return;
+            const error = await clearAll(user.id);
+            if (error) Alert.alert('Error', error);
+          },
+        },
+      ]
+    );
+  }
+
   const selectedCurrency = CURRENCIES.find((c) => c.code === currency) ?? CURRENCIES[0];
 
   return (
@@ -91,131 +98,145 @@ export default function SettingsModal() {
           <Text style={styles.cancel}>Cancel</Text>
         </Pressable>
         <Text style={styles.title}>Settings</Text>
-        <Pressable onPress={handleSave} disabled={saving || loading}>
-          <Text style={[styles.save, (saving || loading) && styles.saveDisabled]}>
+        <Pressable onPress={handleSave} disabled={saving}>
+          <Text style={[styles.save, saving && styles.saveDisabled]}>
             {saving ? 'Saving…' : 'Save'}
           </Text>
         </Pressable>
       </View>
 
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator color={Colors.brand} />
-        </View>
-      ) : (
-        <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content}>
 
-          {/* Profile section */}
-          <View style={styles.sectionGroup}>
-            <Text style={styles.sectionLabel}>Profile</Text>
-            <View style={styles.card}>
+        {/* Profile section */}
+        <View style={styles.sectionGroup}>
+          <Text style={styles.sectionLabel}>Profile</Text>
+          <View style={styles.card}>
 
-              {/* Name */}
-              <View style={styles.row}>
-                <View style={styles.rowIcon}>
-                  <Ionicons name="person-outline" size={18} color={Colors.brand} />
-                </View>
-                <View style={styles.rowContent}>
-                  <Text style={styles.rowLabel}>Name</Text>
-                  <TextInput
-                    style={styles.rowInput}
-                    value={name}
-                    onChangeText={setName}
-                    placeholder="Your name"
-                    placeholderTextColor={Colors.textTertiary}
-                    autoCapitalize="words"
-                  />
-                </View>
+            {/* Name */}
+            <View style={styles.row}>
+              <View style={styles.rowIcon}>
+                <Ionicons name="person-outline" size={18} color={Colors.brand} />
               </View>
-
-              <View style={styles.divider} />
-
-              {/* Email */}
-              <View style={styles.row}>
-                <View style={styles.rowIcon}>
-                  <Ionicons name="mail-outline" size={18} color={Colors.textTertiary} />
-                </View>
-                <View style={styles.rowContent}>
-                  <Text style={styles.rowLabel}>Email</Text>
-                  <Text style={styles.rowValueDisabled} numberOfLines={1}>
-                    {user?.email}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          </View>
-
-          {/* Preferences section */}
-          <View style={styles.sectionGroup}>
-            <Text style={styles.sectionLabel}>Preferences</Text>
-            <View style={styles.card}>
-
-              {/* Currency */}
-              <Pressable
-                style={styles.row}
-                onPress={() => setCurrencyOpen((v) => !v)}
-              >
-                <View style={styles.rowIcon}>
-                  <Ionicons name="cash-outline" size={18} color={Colors.brand} />
-                </View>
-                <View style={styles.rowContent}>
-                  <Text style={styles.rowLabel}>Currency</Text>
-                  <Text style={styles.rowValue}>
-                    {selectedCurrency.symbol} {selectedCurrency.code}
-                  </Text>
-                </View>
-                <Ionicons
-                  name={currencyOpen ? 'chevron-up' : 'chevron-down'}
-                  size={16}
-                  color={Colors.textTertiary}
+              <View style={styles.rowContent}>
+                <Text style={styles.rowLabel}>Name</Text>
+                <TextInput
+                  style={styles.rowInput}
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="Your name"
+                  placeholderTextColor={Colors.textTertiary}
+                  autoCapitalize="words"
                 />
-              </Pressable>
+              </View>
+            </View>
 
-              {currencyOpen && (
-                <View style={styles.currencyOptions}>
-                  {CURRENCIES.map((c, i) => (
-                    <Pressable
-                      key={c.code}
-                      style={[
-                        styles.currencyOption,
-                        i < CURRENCIES.length - 1 && styles.currencyOptionBorder,
-                        currency === c.code && styles.currencyOptionSelected,
-                      ]}
-                      onPress={() => { setCurrency(c.code); setCurrencyOpen(false); }}
-                    >
-                      <View style={styles.currencyOptionLeft}>
-                        <Text style={styles.currencySymbol}>{c.symbol}</Text>
-                        <View>
-                          <Text style={[
-                            styles.currencyCode,
-                            currency === c.code && styles.currencyCodeSelected,
-                          ]}>
-                            {c.code}
-                          </Text>
-                          <Text style={styles.currencyLabel}>{c.label}</Text>
-                        </View>
-                      </View>
-                      {currency === c.code && (
-                        <Ionicons name="checkmark" size={18} color={Colors.brand} />
-                      )}
-                    </Pressable>
-                  ))}
-                </View>
-              )}
+            <View style={styles.divider} />
+
+            {/* Email */}
+            <View style={styles.row}>
+              <View style={styles.rowIcon}>
+                <Ionicons name="mail-outline" size={18} color={Colors.textTertiary} />
+              </View>
+              <View style={styles.rowContent}>
+                <Text style={styles.rowLabel}>Email</Text>
+                <Text style={styles.rowValueDisabled} numberOfLines={1}>
+                  {user?.email}
+                </Text>
+              </View>
             </View>
           </View>
+        </View>
 
-          {/* Sign out */}
-          <Pressable
-            style={({ pressed }) => [styles.signOutBtn, pressed && styles.pressed]}
-            onPress={handleSignOut}
-          >
-            <Ionicons name="log-out-outline" size={18} color={Colors.expense} />
-            <Text style={styles.signOutText}>Sign out</Text>
-          </Pressable>
+        {/* Preferences section */}
+        <View style={styles.sectionGroup}>
+          <Text style={styles.sectionLabel}>Preferences</Text>
+          <View style={styles.card}>
 
-        </ScrollView>
-      )}
+            {/* Currency */}
+            <Pressable
+              style={styles.row}
+              onPress={() => setCurrencyOpen((v) => !v)}
+            >
+              <View style={styles.rowIcon}>
+                <Ionicons name="cash-outline" size={18} color={Colors.brand} />
+              </View>
+              <View style={styles.rowContent}>
+                <Text style={styles.rowLabel}>Currency</Text>
+                <Text style={styles.rowValue}>
+                  {selectedCurrency.symbol} {selectedCurrency.code}
+                </Text>
+              </View>
+              <Ionicons
+                name={currencyOpen ? 'chevron-up' : 'chevron-down'}
+                size={16}
+                color={Colors.textTertiary}
+              />
+            </Pressable>
+
+            {currencyOpen && (
+              <View style={styles.currencyOptions}>
+                {CURRENCIES.map((c, i) => (
+                  <Pressable
+                    key={c.code}
+                    style={[
+                      styles.currencyOption,
+                      i < CURRENCIES.length - 1 && styles.currencyOptionBorder,
+                      currency === c.code && styles.currencyOptionSelected,
+                    ]}
+                    onPress={() => { setCurrency(c.code); setCurrencyOpen(false); }}
+                  >
+                    <View style={styles.currencyOptionLeft}>
+                      <Text style={styles.currencySymbol}>{c.symbol}</Text>
+                      <View>
+                        <Text style={[
+                          styles.currencyCode,
+                          currency === c.code && styles.currencyCodeSelected,
+                        ]}>
+                          {c.code}
+                        </Text>
+                        <Text style={styles.currencyLabel}>{c.label}</Text>
+                      </View>
+                    </View>
+                    {currency === c.code && (
+                      <Ionicons name="checkmark" size={18} color={Colors.brand} />
+                    )}
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Danger zone */}
+        <View style={styles.sectionGroup}>
+          <Text style={styles.sectionLabel}>Data</Text>
+          <View style={styles.card}>
+            <Pressable
+              style={({ pressed }) => [styles.row, styles.dangerRow, pressed && styles.pressed]}
+              onPress={handleResetTransactions}
+            >
+              <View style={[styles.rowIcon, styles.dangerIcon]}>
+                <Ionicons name="trash-outline" size={18} color={Colors.expense} />
+              </View>
+              <View style={styles.rowContent}>
+                <Text style={styles.dangerRowLabel}>Reset all transactions</Text>
+                <Text style={styles.dangerRowSub}>Permanently delete all transaction history</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
+            </Pressable>
+          </View>
+        </View>
+
+        {/* Sign out */}
+        <Pressable
+          style={({ pressed }) => [styles.signOutBtn, pressed && styles.pressed]}
+          onPress={handleSignOut}
+        >
+          <Ionicons name="log-out-outline" size={18} color={Colors.expense} />
+          <Text style={styles.signOutText}>Sign out</Text>
+        </Pressable>
+
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -322,6 +343,12 @@ const styles = StyleSheet.create({
   currencyCode: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary },
   currencyCodeSelected: { color: Colors.brand },
   currencyLabel: { fontSize: 12, color: Colors.textSecondary },
+
+  // Danger row
+  dangerRow: { paddingVertical: Spacing.md },
+  dangerIcon: { backgroundColor: Colors.expenseLight },
+  dangerRowLabel: { fontSize: 15, fontWeight: '500', color: Colors.expense },
+  dangerRowSub: { fontSize: 12, color: Colors.textTertiary, marginTop: 1 },
 
   // Sign out
   signOutBtn: {

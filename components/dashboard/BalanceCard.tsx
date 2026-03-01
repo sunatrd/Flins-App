@@ -7,13 +7,14 @@ type Props = {
   balance: number;
   income: number;
   expense: number;
+  currency?: string;
 };
 
-export function BalanceCard({ balance, income, expense }: Props) {
+export function BalanceCard({ balance, income, expense, currency }: Props) {
   return (
     <View style={styles.card}>
       <Text style={styles.balanceLabel}>Total Balance</Text>
-      <Text style={styles.balanceAmount}>{formatCurrency(balance)}</Text>
+      <Text style={styles.balanceAmount}>{formatCurrency(balance, currency)}</Text>
 
       <View style={styles.divider} />
 
@@ -24,7 +25,7 @@ export function BalanceCard({ balance, income, expense }: Props) {
             <Text style={styles.indicatorLabel}>Income</Text>
           </View>
           <Text style={[styles.colAmount, { color: Colors.income }]}>
-            +{formatCurrency(income)}
+            +{formatCurrency(income, currency)}
           </Text>
         </View>
 
@@ -36,7 +37,7 @@ export function BalanceCard({ balance, income, expense }: Props) {
             <Text style={styles.indicatorLabel}>Expense</Text>
           </View>
           <Text style={[styles.colAmount, { color: Colors.expense }]}>
-            -{formatCurrency(expense)}
+            -{formatCurrency(expense, currency)}
           </Text>
         </View>
       </View>

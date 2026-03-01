@@ -11,12 +11,13 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { router } from 'expo-router';
-import { format } from 'date-fns';
+import { router, useLocalSearchParams } from 'expo-router';
+import { format, parseISO } from 'date-fns';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTransactionStore } from '@/stores/transactionStore';
 import { useCategoryStore } from '@/stores/categoryStore';
 import { useAuthStore } from '@/stores/authStore';
+import { useProfileStore } from '@/stores/profileStore';
 import { CategoryPicker } from '@/components/category/CategoryPicker';
 import { Colors } from '@/constants/colors';
 import { Spacing, Radius } from '@/constants/spacing';
@@ -24,17 +25,26 @@ import { Spacing, Radius } from '@/constants/spacing';
 type TxType = 'expense' | 'income';
 
 export default function AddTransactionModal() {
-  const { addTransaction } = useTransactionStore();
+  const { addTransaction, updateTransaction, transactions } = useTransactionStore();
   const { categories } = useCategoryStore();
   const { user } = useAuthStore();
+  const { profile } = useProfileStore();
 
-  const [type, setType] = useState<TxType>('expense');
-  const [amount, setAmount] = useState('');
-  const [categoryId, setCategoryId] = useState<string | null>(null);
-  const [note, setNote] = useState('');
-  const [dateObj, setDateObj] = useState(new Date());
+  // If ?id= is provided, load the existing transaction for editing
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const existing = id ? transactions.find((t) => t.id === id) : undefined;
+
+  const [type, setType] = useState<TxType>(existing?.type ?? 'expense');
+  const [amount, setAmount] = useState(existing ? String(existing.amount) : '');
+  const [categoryId, setCategoryId] = useState<string | null>(existing?.category_id ?? null);
+  const [note, setNote] = useState(existing?.note ?? '');
+  const [dateObj, setDateObj] = useState(existing ? parseISO(existing.date) : new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const isEditing = !!existing;
+  const currency = profile?.currency ?? 'USD';
+  const currencySymbol = currency === 'THB' ? '฿' : '$';
 
   async function handleSave() {
     const parsed = parseFloat(amount.replace(',', '.'));
@@ -42,25 +52,41 @@ export default function AddTransactionModal() {
       Alert.alert('Error', 'Please enter a valid amount.');
       return;
     }
-    if (!user) {
-      Alert.alert('Error', 'You must be signed in to save a transaction.');
-      return;
-    }
 
     setSaving(true);
-    const errorMsg = await addTransaction({
-      user_id: user.id,
-      type,
-      amount: parsed,
-      category_id: categoryId,
-      note: note.trim() || null,
-      date: format(dateObj, 'yyyy-MM-dd'),
-    });
-    setSaving(false);
 
-    if (errorMsg) {
-      Alert.alert('Could not save', errorMsg);
-      return;
+    if (isEditing) {
+      const errorMsg = await updateTransaction(existing.id, {
+        type,
+        amount: parsed,
+        category_id: categoryId,
+        note: note.trim() || null,
+        date: format(dateObj, 'yyyy-MM-dd'),
+      });
+      setSaving(false);
+      if (errorMsg) {
+        Alert.alert('Could not save', errorMsg);
+        return;
+      }
+    } else {
+      if (!user) {
+        Alert.alert('Error', 'You must be signed in to save a transaction.');
+        setSaving(false);
+        return;
+      }
+      const errorMsg = await addTransaction({
+        user_id: user.id,
+        type,
+        amount: parsed,
+        category_id: categoryId,
+        note: note.trim() || null,
+        date: format(dateObj, 'yyyy-MM-dd'),
+      });
+      setSaving(false);
+      if (errorMsg) {
+        Alert.alert('Could not save', errorMsg);
+        return;
+      }
     }
 
     router.back();
@@ -74,9 +100,11 @@ export default function AddTransactionModal() {
         <Pressable onPress={() => router.back()}>
           <Text style={styles.cancel}>Cancel</Text>
         </Pressable>
-        <Text style={styles.title}>New Transaction</Text>
+        <Text style={styles.title}>{isEditing ? 'Edit Transaction' : 'New Transaction'}</Text>
         <Pressable onPress={handleSave} disabled={saving}>
-          <Text style={[styles.save, saving && styles.saveDisabled]}>Save</Text>
+          <Text style={[styles.save, saving && styles.saveDisabled]}>
+            {saving ? 'Saving…' : 'Save'}
+          </Text>
         </Pressable>
       </View>
 
@@ -119,7 +147,7 @@ export default function AddTransactionModal() {
 
           {/* Amount */}
           <View style={styles.amountContainer}>
-            <Text style={[styles.currencySymbol, { color: accentColor }]}>$</Text>
+            <Text style={[styles.currencySymbol, { color: accentColor }]}>{currencySymbol}</Text>
             <TextInput
               style={[styles.amountInput, { color: accentColor }]}
               placeholder="0.00"
@@ -127,7 +155,7 @@ export default function AddTransactionModal() {
               value={amount}
               onChangeText={setAmount}
               keyboardType="decimal-pad"
-              autoFocus
+              autoFocus={!isEditing}
             />
           </View>
 
@@ -197,7 +225,11 @@ export default function AddTransactionModal() {
             disabled={saving}
           >
             <Text style={styles.saveBtnText}>
-              {saving ? 'Saving…' : `Save ${type === 'income' ? 'Income' : 'Expense'}`}
+              {saving
+                ? 'Saving…'
+                : isEditing
+                ? `Update ${type === 'income' ? 'Income' : 'Expense'}`
+                : `Save ${type === 'income' ? 'Income' : 'Expense'}`}
             </Text>
           </Pressable>
         </ScrollView>
