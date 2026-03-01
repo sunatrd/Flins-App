@@ -30,6 +30,7 @@ type TransactionState = {
   updateTransaction: (id: string, updates: Partial<Transaction>) => Promise<string | null>;
   removeTransaction: (id: string) => Promise<void>;
   clearAll: (userId: string) => Promise<string | null>;
+  clear: () => void;
 };
 
 export const useTransactionStore = create<TransactionState>((set) => ({
@@ -101,4 +102,6 @@ export const useTransactionStore = create<TransactionState>((set) => ({
     set({ transactions: [] });
     return null;
   },
+
+  clear: () => set({ transactions: [], loading: false }),
 }));

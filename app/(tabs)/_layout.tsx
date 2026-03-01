@@ -1,21 +1,29 @@
 import { Tabs } from 'expo-router';
 import { View, StyleSheet, Pressable, Text, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { Radius, Shadow, Spacing } from '@/constants/spacing';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
-function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
-  const tabs = [
-    { name: 'index', label: 'Home', icon: '⊙' },
-    { name: 'transactions', label: 'Transactions', icon: '↕' },
-    { name: 'categories', label: 'Categories', icon: '⊞' },
-  ];
+type TabDef = {
+  name: string;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  iconActive: keyof typeof Ionicons.glyphMap;
+};
 
+const TABS: TabDef[] = [
+  { name: 'index',        label: 'Home',         icon: 'home-outline',          iconActive: 'home' },
+  { name: 'transactions', label: 'Transactions',  icon: 'swap-vertical-outline', iconActive: 'swap-vertical' },
+  { name: 'categories',   label: 'Categories',    icon: 'grid-outline',          iconActive: 'grid' },
+];
+
+function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   return (
     <View style={styles.wrapper}>
       <View style={styles.bar}>
         {state.routes.map((route, i) => {
-          const tab = tabs.find((t) => t.name === route.name) ?? tabs[i];
+          const tab = TABS.find((t) => t.name === route.name) ?? TABS[i];
           const isFocused = state.index === i;
 
           return (
@@ -27,7 +35,11 @@ function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
               }}
             >
               <View style={[styles.iconWrap, isFocused && styles.iconWrapActive]}>
-                <Text style={[styles.icon, isFocused && styles.iconActive]}>{tab.icon}</Text>
+                <Ionicons
+                  name={isFocused ? tab.iconActive : tab.icon}
+                  size={22}
+                  color={isFocused ? Colors.brand : Colors.textTertiary}
+                />
               </View>
               <Text style={[styles.label, isFocused && styles.labelActive]}>
                 {tab.label}
@@ -77,13 +89,6 @@ const styles = StyleSheet.create({
   },
   iconWrapActive: {
     backgroundColor: Colors.brandLight,
-  },
-  icon: {
-    fontSize: 18,
-    color: Colors.textTertiary,
-  },
-  iconActive: {
-    color: Colors.brand,
   },
   label: {
     fontSize: 10,

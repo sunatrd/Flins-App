@@ -187,29 +187,37 @@ export default function AddTransactionModal() {
           {/* Date */}
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Date</Text>
-            <Pressable
-              style={styles.dateBtn}
-              onPress={() => setShowDatePicker((v) => !v)}
-            >
-              <Text style={styles.dateIcon}>📅</Text>
-              <Text style={styles.dateBtnText}>
-                {format(dateObj, 'MMMM d, yyyy')}
-              </Text>
-              <Text style={styles.dateChevron}>›</Text>
-            </Pressable>
-
-            {showDatePicker && (
-              <DateTimePicker
-                value={dateObj}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                maximumDate={new Date()}
-                onChange={(_, selectedDate) => {
-                  if (Platform.OS === 'android') setShowDatePicker(false);
-                  if (selectedDate) setDateObj(selectedDate);
-                }}
-                style={styles.datePicker}
-              />
+            {Platform.OS === 'ios' ? (
+              <View style={styles.dateRow}>
+                <Text style={styles.dateIcon}>📅</Text>
+                <DateTimePicker
+                  value={dateObj}
+                  mode="date"
+                  display="compact"
+                  maximumDate={new Date()}
+                  onChange={(_, d) => { if (d) setDateObj(d); }}
+                />
+              </View>
+            ) : (
+              <>
+                <Pressable
+                  style={styles.dateBtn}
+                  onPress={() => setShowDatePicker((v) => !v)}
+                >
+                  <Text style={styles.dateIcon}>📅</Text>
+                  <Text style={styles.dateBtnText}>{format(dateObj, 'MMMM d, yyyy')}</Text>
+                  <Text style={styles.dateChevron}>›</Text>
+                </Pressable>
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={dateObj}
+                    mode="date"
+                    display="default"
+                    maximumDate={new Date()}
+                    onChange={(_, d) => { setShowDatePicker(false); if (d) setDateObj(d); }}
+                  />
+                )}
+              </>
             )}
           </View>
 
@@ -299,6 +307,17 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     minHeight: 48,
   },
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.base,
+    paddingVertical: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    gap: Spacing.sm,
+  },
   dateBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -313,7 +332,6 @@ const styles = StyleSheet.create({
   dateIcon: { fontSize: 16 },
   dateBtnText: { flex: 1, fontSize: 15, color: Colors.textPrimary, fontWeight: '500' },
   dateChevron: { fontSize: 20, color: Colors.textTertiary },
-  datePicker: { marginTop: Spacing.sm },
   saveBtn: {
     paddingVertical: Spacing.base,
     borderRadius: Radius.md,

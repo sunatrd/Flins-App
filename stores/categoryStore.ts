@@ -21,6 +21,7 @@ type CategoryState = {
   updateCategory: (id: string, updates: Partial<Category>) => Promise<void>;
   removeCategory: (id: string) => Promise<void>;
   seedDefaults: (userId: string) => Promise<void>;
+  clear: () => void;
 };
 
 export const useCategoryStore = create<CategoryState>((set, get) => ({
@@ -66,6 +67,8 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
     await supabase.from('categories').delete().eq('id', id);
     set((s) => ({ categories: s.categories.filter((c) => c.id !== id) }));
   },
+
+  clear: () => set({ categories: [], loading: false }),
 
   seedDefaults: async (userId) => {
     const existing = get().categories;

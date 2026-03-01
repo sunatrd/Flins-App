@@ -32,6 +32,8 @@ export default function RootLayout() {
         useTransactionStore.getState().fetch(session.user.id);
       } else {
         useProfileStore.getState().clear();
+        useCategoryStore.getState().clear();
+        useTransactionStore.getState().clear();
       }
     });
 
